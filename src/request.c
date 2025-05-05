@@ -13,6 +13,21 @@ int scheduling_algo = DEFAULT_SCHED_ALGO;
 //	HINT: You will need synchronization primitives.
 //		pthread_mutuex_t lock_var is a viable option.
 //
+typedef struct {
+    int conn_fd;      // connection file descriptor
+    char filename[MAXBUF];  // requested filename
+    int filesize;     // file size (optional - can be used for SFF later)
+} request_t;
+
+request_t* buffer;
+int buffer_size = 0;
+int buffer_head = 0;
+int buffer_tail = 0;
+
+// synchronization primitives
+pthread_mutex_t buffer_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t buffer_not_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t buffer_not_full = PTHREAD_COND_INITIALIZER;
 
 //
 // Sends out HTTP response in case of errors
