@@ -29,6 +29,30 @@ pthread_mutex_t buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t buffer_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_not_full = PTHREAD_COND_INITIALIZER;
 
+// Initialize buffer at start 
+void request_buffer_init() {
+    buffer = malloc(sizeof(request_t) * buffer_max_size);
+    assert(buffer != NULL);
+}
+
+// Insert request into buffer
+void request_buffer_insert(int conn_fd, char *filename, int filesize) {
+    pthread_mutex_lock(&buffer_lock);
+    
+    while (buffer_size == buffer_max_size)
+        pthread_cond_wait(&buffer_not_full, &buffer_lock);
+
+    buffer[buffer_tail].conn_fd = conn_fd;
+    strcpy(buffer[buffer_tail].filename, filename);
+    buffer[buffer_tail].filesize = filesize;
+    
+    buffer_tail = (buffer_tail + 1) % buffer_max_size;
+    buffer_size++;
+
+    pthread_cond_signal(&buffer_not_empty);
+    pthread_mutex_unlock(&buffer_lock);
+}
+
 //
 // Sends out HTTP response in case of errors
 //
