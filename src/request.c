@@ -59,18 +59,39 @@ void request_buffer_insert(int conn_fd, char *filename, int filesize) {
 // Remove request from buffer
 request_t request_buffer_remove() {
     pthread_mutex_lock(&buffer_lock);
-    
+
     while (buffer_size == 0)
         pthread_cond_wait(&buffer_not_empty, &buffer_lock);
-    
-    request_t req = buffer[buffer_head];
-    buffer_head = (buffer_head + 1) % buffer_max_size;
+
+    int idx = buffer_head;  // default FIFO
+
+    if (scheduling_algo == 1) { // SFF
+        for (int i = 0; i < buffer_size; i++) {
+            int real_idx = (buffer_head + i) % buffer_max_size;
+            if (buffer[real_idx].filesize < buffer[idx].filesize ||
+                (buffer[real_idx].filesize == buffer[idx].filesize &&
+                 timespec_compare(&buffer[real_idx].arrival_time, &buffer[idx].arrival_time) < 0)) {
+                idx = real_idx;
+            }
+        }
+    } else if (scheduling_algo == 2) { // RANDOM
+        int random_offset = rand() % buffer_size;
+        idx = (buffer_head + random_offset) % buffer_max_size;
+    }
+
+    request_t req = buffer[idx];
+
+    // Move last element into idx to keep circular buffer tight
+    int last_idx = (buffer_tail - 1 + buffer_max_size) % buffer_max_size;
+    buffer[idx] = buffer[last_idx];
+    buffer_tail = last_idx;
     buffer_size--;
 
     pthread_cond_signal(&buffer_not_full);
     pthread_mutex_unlock(&buffer_lock);
-    
+
     return req;
+}
 //
 // Sends out HTTP response in case of errors
 //
