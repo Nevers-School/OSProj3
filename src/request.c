@@ -17,6 +17,8 @@ typedef struct {
     int conn_fd;      // connection file descriptor
     char filename[MAXBUF];  // requested filename
     int filesize;     // file size (optional - can be used for SFF later)
+    int usage_count;       // for starvation prevention (optional, for SFF)
+    struct timespec arrival_time;  // timestamp for FIFO tiebreak
 } request_t;
 
 request_t* buffer;
@@ -45,14 +47,15 @@ void request_buffer_insert(int conn_fd, char *filename, int filesize) {
     buffer[buffer_tail].conn_fd = conn_fd;
     strcpy(buffer[buffer_tail].filename, filename);
     buffer[buffer_tail].filesize = filesize;
-    
+    buffer[buffer_tail].usage_count = 0;
+    clock_gettime(CLOCK_REALTIME, &buffer[buffer_tail].arrival_time);
+
     buffer_tail = (buffer_tail + 1) % buffer_max_size;
     buffer_size++;
 
     pthread_cond_signal(&buffer_not_empty);
     pthread_mutex_unlock(&buffer_lock);
 }
-
 // Remove request from buffer
 request_t request_buffer_remove() {
     pthread_mutex_lock(&buffer_lock);
@@ -255,6 +258,11 @@ void request_handle(int fd) {
 	}
     
 	// TODO: directory traversal mitigation	
+    if (strstr(filename, "..") != NULL) {
+        request_error(fd, filename, "403", "Forbidden", "directory traversal attempt detected");
+        close_or_die(fd);
+        return;
+    }
 	// TODO: write code to add HTTP requests in the buffer
 
     } else {
