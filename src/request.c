@@ -13,6 +13,13 @@ int scheduling_algo = DEFAULT_SCHED_ALGO;
 //	HINT: You will need synchronization primitives.
 //		pthread_mutuex_t lock_var is a viable option.
 //
+int timespec_compare(struct timespec *a, struct timespec *b) {
+    if (a->tv_sec < b->tv_sec) return -1;
+    if (a->tv_sec > b->tv_sec) return 1;
+    if (a->tv_nsec < b->tv_nsec) return -1;
+    if (a->tv_nsec > b->tv_nsec) return 1;
+    return 0;
+}
 typedef struct {
     int conn_fd;      // connection file descriptor
     char filename[MAXBUF];  // requested filename
@@ -234,13 +241,6 @@ void* thread_request_serve_static(void* arg) {
     }
     return NULL;
 }
-{
-    // TODO: write code to actualy respond to HTTP requests
-    // Pull from global buffer of requests
-    request_buffer_insert(fd, filename, sbuf.st_size);
-    return;
-}
-
 //
 // Initial handling of the request
 //
@@ -285,7 +285,9 @@ void request_handle(int fd) {
         return;
     }
 	// TODO: write code to add HTTP requests in the buffer
-
+    // Add request to global buffer
+    request_buffer_insert(fd, filename, sbuf.st_size);
+    return;
     } else {
 	request_error(fd, filename, "501", "Not Implemented", "server does not serve dynamic content request");
     }
