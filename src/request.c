@@ -53,6 +53,21 @@ void request_buffer_insert(int conn_fd, char *filename, int filesize) {
     pthread_mutex_unlock(&buffer_lock);
 }
 
+// Remove request from buffer
+request_t request_buffer_remove() {
+    pthread_mutex_lock(&buffer_lock);
+    
+    while (buffer_size == 0)
+        pthread_cond_wait(&buffer_not_empty, &buffer_lock);
+    
+    request_t req = buffer[buffer_head];
+    buffer_head = (buffer_head + 1) % buffer_max_size;
+    buffer_size--;
+
+    pthread_cond_signal(&buffer_not_full);
+    pthread_mutex_unlock(&buffer_lock);
+    
+    return req;
 //
 // Sends out HTTP response in case of errors
 //
