@@ -46,7 +46,10 @@ int main(int argc, char *argv[]) {
     // browse to webserver's root directory
     chdir_or_die(root_dir);
 
+	// initialize global request buffer
+	request_buffer_init();
 	// create the thread pool
+	
 	pthread_t thread_pool[num_threads];
 	for(int i=0; i<num_threads; i++)
     	pthread_create(&thread_pool[i], NULL, thread_request_serve_static, NULL);

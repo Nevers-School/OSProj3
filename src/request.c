@@ -100,7 +100,7 @@ void request_error(int fd, char *cause, char *errnum, char *shortmsg, char *long
     write_or_die(fd, body, strlen(body));
     
     // close the socket connection
-    close_or_die(fd);
+    // done later now close_or_die(fd);
 }
 
 //
@@ -191,10 +191,30 @@ void request_serve_static(int fd, char *filename, int filesize) {
 //
 // Fetches the requests from the buffer and handles them (thread logic)
 //
-void* thread_request_serve_static(void* arg)
+void* thread_request_serve_static(void* arg) {
+    while (1) {
+        request_t req = request_buffer_remove();
+
+        struct stat sbuf;
+        if (stat(req.filename, &sbuf) < 0) {
+            request_error(req.conn_fd, req.filename, "404", "Not Found", "File not found");
+            close_or_die(req.conn_fd);
+            continue;
+        }
+
+        // serve the file
+        request_serve_static(req.conn_fd, req.filename, sbuf.st_size);
+
+        // close connection after serving
+        close_or_die(req.conn_fd);
+    }
+    return NULL;
+}
 {
     // TODO: write code to actualy respond to HTTP requests
     // Pull from global buffer of requests
+    request_buffer_insert(fd, filename, sbuf.st_size);
+    return;
 }
 
 //
